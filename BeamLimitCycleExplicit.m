@@ -1,6 +1,6 @@
-%This code evaluates and plots the stability
-% boundaries for a panel using a beam model
-%The equations use the linear tems only
+%This code evaluates and plots the variation
+% of the limit cycle amplitude
+% for a panel using a beam model
 
 %Functions will work on Octave, FreeMat
 % and Matlab
