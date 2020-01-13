@@ -48,28 +48,28 @@ TbInv=inv([1,0 ,0    ,0; ...
 %Element matrices
 %Stiffness Matrix
 Ke=Modulus*Imoment*[12  ,6*Le   ,-12  ,6*Le; ...
-6*Le,4*Le*Le,-6*Le,2*Le*Le; ...
--12 ,-6*Le  ,12   ,-6*Le; ...
-6*Le,2*Le*Le,-6*Le,4*Le*Le]/Le/Le/Le;
+                    6*Le,4*Le*Le,-6*Le,2*Le*Le; ...
+                    -12 ,-6*Le  ,12   ,-6*Le; ...
+                    6*Le,2*Le*Le,-6*Le,4*Le*Le]/Le/Le/Le;
 
 M=Le*[156  ,22*Le    ,54    ,-13*Le; ...
-22*Le, 4*Le*Le ,13*Le ,-3*Le*Le; ...
-54   ,13*Le    ,156   ,-22*Le; ...
--13*Le,-3*Le*Le ,-22*Le,4*Le*Le]/420;
+      22*Le, 4*Le*Le ,13*Le ,-3*Le*Le; ...
+      54   ,13*Le    ,156   ,-22*Le; ...
+     -13*Le,-3*Le*Le ,-22*Le,4*Le*Le]/420;
 %Mass Matrix
 Me =Rho*Area*M; 
 %Aerodynamic Damping Matrix
 Mg =Modulus*Imoment/Wo/(Length^4)*M; 
-%Geometric Matrix
+%Thermal Stiffness Matrix
 Kg =Alpha*Modulus*Area*[36  ,3*Le   ,-36  ,3*Le   ; ...
-3*Le,4*Le*Le,-3*Le,-Le*Le ; ...
--36 ,-3*Le  ,36   ,-3*Le  ; ...
-3*Le,-Le*Le ,-3*Le,4*Le*Le]/30/Le; 
+                        3*Le,4*Le*Le,-3*Le,-Le*Le ; ...
+                        -36 ,-3*Le  ,36   ,-3*Le  ; ...
+                        3*Le,-Le*Le ,-3*Le,4*Le*Le]/30/Le; 
 %Aerodynamic Stiffness matrix
 Ka =Modulus*Imoment/(Length^3)*[-30  ,6*Le ,30   ,-6*Le; ...
--6*Le,0    ,6*Le ,-Le*Le; ...
--30  ,-6*Le,30   ,6*Le; ...
-6*Le ,Le*Le,-6*Le,0]/60;
+                                -6*Le,0    ,6*Le ,-Le*Le; ...
+                                -30  ,-6*Le,30   ,6*Le; ...
+                                6*Le ,Le*Le,-6*Le,0]/60;
 %***************************
 %Global stiffness and mass matrix assembly
 %***************************
@@ -82,15 +82,15 @@ MgGlobal=zeros(2*(NE+1),2*(NE+1));
 %Assembling the global matrix
 for ii=1:NE
   KeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))= ...
-  KeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Ke;
+    KeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Ke;
   KgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))= ...
-  KgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Kg;
+    KgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Kg;
   KaGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))= ...
-  KaGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Ka;
+    KaGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Ka;
   MeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))= ...
-  MeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Me;
+    MeGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Me;
   MgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))= ...
-  MgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Mg;
+    MgGlobal(2*ii-1:2*(ii+1),2*ii-1:2*(ii+1))+Mg;
 end
 %***************************
 %The boundary conditions
@@ -101,21 +101,23 @@ BCs=[1,2,2*NE+1,2*NE+2];
 %For simply supported beam, the first and before-last
 % degees of freedom are fixed
 %BCs=[1,2*NE+1];
-BCsC=1:1:2*(NE+1);
-BCsC(BCs)=[];
-Displacements=zeros(2*(NE+1),1);
 
 %Applying the boundary conditions
-KeGlobal(BCs,:)=[];
-KeGlobal(:,BCs)=[];
-KgGlobal(BCs,:)=[];
-KgGlobal(:,BCs)=[];
-KaGlobal(BCs,:)=[];
-KaGlobal(:,BCs)=[];
-MeGlobal(BCs,:)=[];
-MeGlobal(:,BCs)=[];
-MgGlobal(BCs,:)=[];
-MgGlobal(:,BCs)=[];
+KeGlobal(BCs,:)=[]; KeGlobal(:,BCs)=[];
+KgGlobal(BCs,:)=[]; KgGlobal(:,BCs)=[];
+KaGlobal(BCs,:)=[]; KaGlobal(:,BCs)=[];
+MeGlobal(BCs,:)=[]; MeGlobal(:,BCs)=[];
+MgGlobal(BCs,:)=[]; MgGlobal(:,BCs)=[];
+
+%Creating the complementary-boundary-conditions
+% vector. This includes the numbers of the 
+% free degrees of freedom
+BCsC=1:1:2*(NE+1);
+BCsC(BCs)=[];
+
+%Initializing a vector with the latest
+% values of ALL the degrees of freedom
+Displacements=zeros(2*(NE+1),1);
 
 %***************************
 %Calculating the buckling temperature
@@ -123,94 +125,116 @@ MgGlobal(:,BCs)=[];
 TBucklingStatic=min(eig(inv(KgGlobal)*KeGlobal))
 %***************************
 
-%Looping for different values of the dynamic pressure
-% to evaluate the buckling temperature at each speed
-for ii=1:101
-  LambdaBuc(ii)=(ii-1)*2.0;
-  TTBuc(ii)=min(eig(inv(KgGlobal)*(KeGlobal+LambdaBuc(ii)*KaGlobal)));
-endfor
-TTBuc=TTBuc/TBucklingStatic;
 
-%Looping for different temperatures to evaluate
-% the critical dynamic pressure
+%Looping for different temperatures to
+% evaluate the critical dynamic pressure
 for ii=1:11
+  %Evaluating the temperature
   TempFlut=(ii-1)*0.15*TBucklingStatic; 
-  %The number 0.017 in the above line is
-  % totally arbitrary for scaling the graph
+  %Storing it in a vector
+  % normalized with the basic buckliing temp.
+  TTFlut(ii)=TempFlut/TBucklingStatic;
+  %The number 0.015 in the above line is
+  % totally arbitrary
   %**********************
   %Searching for the flutter pressure
   for jj=1:1001
-    LL=1*(jj-1); %Value of Lamda to test for flutter
+    %Value of Lamda to test for flutter
+    LL=1*(jj-1);
+    %Evaluating the total mass
+    % and stiffness matrices
     KK=KeGlobal-TempFlut*KgGlobal+LL*KaGlobal;
     MM=MeGlobal+MgGlobal;
+    %Obtaining the eigenvalues and vectors
     [vv,Kappa]=eig(inv(MM)*KK);
+    %Putting the eigenvalues in a vector
     Kappa=diag(Kappa);
+    %Extracting the imaginary values 
+    % of the eigenvalues
     IK=imag(Kappa);
     %If any of the imaginary eigenvalues
     % is NOT ZERO then record the critical
     % pressure
     if IK'*IK!=0
-      TTFlut(ii)=TempFlut/TBucklingStatic;
-      LambdaFlut(ii)=LL;
+      %Sort the eigenvalues
       [Kappa,SortIndex]=sort(Kappa);
+      %Obtain the mode-shape associated with
+      % the flutter pressure
       Phi=real(vv(:,SortIndex(1)));
+      %Normalize the mode shape with the 
+      % maximum value
       Phi=Phi/max(abs(Phi));
+      %Exit the dynami-pressure loop
       break
     endif
   endfor
+  %Store the flutter dynamic pressure
+  % as the first point on the graph
   LamdaCycle(1,ii)=LL;
+  %Initialize the displacements with the 
+  % mode-shape of flutter
   Displacements(BCsC)=Phi;
+  %Initialize the limit cycle amplitude vector
   Cvect(1)=0;
+  %Loop for different limit cycle amplituudes
   for kk=1:5
-    c0=0.5*kk;
-    Cvect(kk+1)=c0;
-    %Calculating the Nonlinear Stiffness of each element
+    c0=0.5*kk; %The amplitude
+    Cvect(kk+1)=c0; %Store the amplitude
+    %Calculating the Nonlinear Stiffness
+    % matrix for the structure
     N2G=zeros(2*(NE+1),2*(NE+1));
     %looping for the elements
     for jj=1:NE
       %Extracting Node Displacements
+      %NOTE: the amplitude is multiplied
+      % by the thickness to get a physical
+      % value for the displacements
       Wbe=c0*Thickness*Displacements(2*jj-1:2*jj+2);
+      %Evaluating the element nonlinear matrix
       N2e=CalcNonLinearBeam(Modulus*Area,TbInv,Le,Width,Wbe);
       %Assembling Non-Linear Stiffness Matrices
       N2G(2*jj-1:2*(jj+1),2*jj-1:2*(jj+1))= ...
-      N2G(2*jj-1:2*(jj+1),2*jj-1:2*(jj+1))+N2e;
+        N2G(2*jj-1:2*(jj+1),2*jj-1:2*(jj+1))+N2e;
       %END of Non-Linear Assembly
     end %for elements
+    %Applying boundary conditions
     N2G(BCs,:)=[]; N2G(:,BCs)=[];
+    %Searching for the dynamic pressure 
+    % that will satisfy the equilibrium
     for jj=LL:2*LL
+      %Evaluating the total stiffness
+      % matric - including the nonlinear matrix
       KK=KeGlobal-TempFlut*KgGlobal+jj*KaGlobal+N2G;
+      %Evaluating the total mass matrix
       MM=MeGlobal+MgGlobal;
-      [vv,Kappa]=eig(inv(MM)*KK);
-      Kappa=diag(Kappa);
+      %Obtaining the eigenvalues
+      Kappa=eig(inv(MM)*KK);
       IK=imag(Kappa);
       %If any of the imaginary eigenvalues
       % is NOT ZERO then record the critical
       % pressure
       if IK'*IK!=0
+        %This diaplys the current satus of calculations
         [kk ii jj]
+        %Storing the equilibrium
+        % dynamic pressure
         LamdaCycle(kk+1,ii)=jj;
+        %Exit the dynamic pressure loop
         break
       endif
     endfor
   endfor
 endfor
-%Plorring the resulting graphs
-figure(1)  
-plot(real(TTBuc),LambdaBuc,TTFlut,LambdaFlut)
-grid
-ylabel("Lambda")
-xlabel("Temp/TempCritical")
-
+%Ploting the resulting graphs
 figure(2)
 plot(LamdaCycle,Cvect)
 grid
 ylabel("Limit Cycle amplitude (co) / Thickness")
 xlabel("Dynamic Pressure")
-
 figure(3)
 plot(TTFlut, LamdaCycle')
 grid
 ylabel("Dynamic Pressure")
 xlabel("Temperature/TCritical")
-
+%Storing the results in a text file
 save XYZ.txt LamdaCycle -ascii
